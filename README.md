@@ -6,12 +6,12 @@ To run locally:
 
 - Install NPM
 
-Install dependencies, run:
+- Install dependencies, run:
 ```
 npm install
 ```
 
-Connection to Supabase:
+- Connection to Supabase:
 Just create a file in the root directory named .env.local with:
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_project_url
