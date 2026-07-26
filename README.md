@@ -4,9 +4,12 @@ Program to control sales during and after events.
 
 To run locally:
 
-Install NPM
-Run:
-```npm install```
+- Install NPM
+
+Install dependencies, run:
+```
+npm install
+```
 
 Connection to Supabase:
 Just create a file in the root directory named .env.local with:
