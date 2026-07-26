@@ -18,3 +18,7 @@ NEXT_PUBLIC_SUPABASE_URL=your_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_api_key
 SUPABASE_SECRET_KEY=your_secret_api_key
 ```
+- Run:
+```
+npm run dev
+```
