@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Event, Dish, EventDish } from '@/lib/types'
-import AdminGate from '@/components/AdminGate'
 import Link from 'next/link'
+import AdminGate from '@/components/AdminGate'
 
 export default function AdminSetupPage() {
   const [events, setEvents] = useState<Event[]>([])
@@ -17,7 +17,10 @@ export default function AdminSetupPage() {
   const [selectedEventId, setSelectedEventId] = useState('')
   const [selectedDishId, setSelectedDishId] = useState('')
   const [price, setPrice] = useState('')
+  const [stock, setStock] = useState('')
   const [eventDishes, setEventDishes] = useState<EventDish[]>([])
+  const [savingStockIds, setSavingStockIds] = useState<Set<string>>(new Set())
+  const stockTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   async function loadEvents() {
     const { data } = await supabase
@@ -35,7 +38,7 @@ export default function AdminSetupPage() {
   async function loadEventDishes(eventId: string) {
     const { data } = await supabase
       .from('event_dishes')
-      .select('id, event_id, dish_id, price, dishes(id, name)')
+      .select('id, event_id, dish_id, price, stock, dishes(id, name)')
       .eq('event_id', eventId)
     setEventDishes((data as any) ?? [])
   }
@@ -49,6 +52,8 @@ export default function AdminSetupPage() {
     if (selectedEventId) loadEventDishes(selectedEventId)
     else setEventDishes([])
   }, [selectedEventId])
+
+  const selectedEvent = events.find((ev) => ev.id === selectedEventId)
 
   async function createEvent() {
     if (!newEventName || !newEventDate) return
@@ -71,16 +76,46 @@ export default function AdminSetupPage() {
 
   async function linkDish() {
     if (!selectedEventId || !selectedDishId || !price) return
-    const { error } = await supabase
-      .from('event_dishes')
-      .insert({ event_id: selectedEventId, dish_id: selectedDishId, price: parseFloat(price) })
+    if (selectedEvent?.ended) return
+    const { error } = await supabase.from('event_dishes').insert({
+      event_id: selectedEventId,
+      dish_id: selectedDishId,
+      price: parseFloat(price),
+      stock: stock === '' ? null : parseInt(stock, 10),
+    })
     if (error) return alert(error.message)
     setSelectedDishId('')
     setPrice('')
+    setStock('')
     loadEventDishes(selectedEventId)
   }
 
+  async function updateStock(id: string, newStock: string) {
+    if (selectedEvent?.ended) return
+    const value = newStock === '' ? null : parseInt(newStock, 10)
+    const { error } = await supabase
+      .from('event_dishes')
+      .update({ stock: value })
+      .eq('id', id)
+    if (error) alert(error.message)
+    await loadEventDishes(selectedEventId)
+    setSavingStockIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+
+  function handleStockChange(id: string, newValue: string) {
+    setSavingStockIds((prev) => new Set(prev).add(id))
+    if (stockTimers.current[id]) clearTimeout(stockTimers.current[id])
+    stockTimers.current[id] = setTimeout(() => {
+      updateStock(id, newValue)
+    }, 600)
+  }
+
   async function removeEventDish(id: string) {
+    if (selectedEvent?.ended) return
     const { error } = await supabase.from('event_dishes').delete().eq('id', id)
     if (error) {
       // Postgres blocks this delete (on delete restrict) if orders already
@@ -161,7 +196,13 @@ export default function AdminSetupPage() {
             ))}
           </select>
 
-          {selectedEventId && (
+          {selectedEventId && selectedEvent?.ended && (
+            <p className="text-sm font-medium text-neutral-500 bg-neutral-100 border rounded-lg px-3 py-2">
+              This event has ended. Dishes can no longer be added or removed.
+            </p>
+          )}
+
+          {selectedEventId && !selectedEvent?.ended && (
             <>
               <select
                 className="w-full border rounded-lg p-2"
@@ -183,32 +224,57 @@ export default function AdminSetupPage() {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
               />
+              <input
+                type="number"
+                min="0"
+                className="w-full border rounded-lg p-2"
+                placeholder="Stock (leave empty for unlimited)"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+              />
               <button
                 className="bg-black text-white px-4 py-2 rounded-lg"
                 onClick={linkDish}
               >
                 Add to event
               </button>
+            </>
+          )}
 
-              <ul className="pt-2 space-y-2">
-                {eventDishes.map((ed) => (
-                  <li
-                    key={ed.id}
-                    className="flex justify-between items-center border-t pt-2"
-                  >
-                    <span>
-                      {(ed as any).dishes?.name} — R$ {ed.price.toFixed(2)}
-                    </span>
+          {selectedEventId && (
+            <ul className="pt-2 space-y-2">
+              {eventDishes.map((ed) => (
+                <li
+                  key={ed.id}
+                  className="flex justify-between items-center border-t pt-2 gap-2"
+                >
+                  <span className="flex-1">
+                    {(ed as any).dishes?.name} — R$ {ed.price.toFixed(2)}
+                  </span>
+                  <span className="text-xs text-neutral-500">Stock:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="w-24 border rounded-lg p-1 text-sm"
+                    placeholder="Unlimited"
+                    defaultValue={ed.stock ?? ''}
+                    disabled={selectedEvent?.ended}
+                    onChange={(e) => handleStockChange(ed.id, e.target.value)}
+                  />
+                  {savingStockIds.has(ed.id) && (
+                    <span className="text-xs text-neutral-400">Saving...</span>
+                  )}
+                  {!selectedEvent?.ended && (
                     <button
                       className="text-red-600 text-sm"
                       onClick={() => removeEventDish(ed.id)}
                     >
                       Remove
                     </button>
-                  </li>
-                ))}
-              </ul>
-            </>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       </main>

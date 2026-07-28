@@ -15,6 +15,7 @@ export type EventDish = {
   event_id: string
   dish_id: string
   price: number
+  stock: number | null
   dishes: Dish
 }
 

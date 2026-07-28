@@ -17,7 +17,7 @@ export default function OrderPage() {
   async function loadDishes(eventId: string) {
     const { data } = await supabase
       .from('event_dishes')
-      .select('id, event_id, dish_id, price, dishes(id, name)')
+      .select('id, event_id, dish_id, price, stock, dishes(id, name)')
       .eq('event_id', eventId)
     setEventDishes((data as any) ?? [])
     setLoading(false)
@@ -34,6 +34,30 @@ export default function OrderPage() {
     setLoading(true)
     loadDishes(eventId)
   }
+
+  // Keep stock numbers live: refresh whenever event_dishes changes for the
+  // selected event (e.g. admin updates stock, or another device sells out).
+  useEffect(() => {
+    if (!selectedEventId) return
+
+    const channel = supabase
+      .channel(`order-event-dishes-${selectedEventId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_dishes',
+          filter: `event_id=eq.${selectedEventId}`,
+        },
+        () => loadDishes(selectedEventId)
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedEventId])
 
   // Load events once
   useEffect(() => {
@@ -99,7 +123,15 @@ export default function OrderPage() {
     const { error: itemsError } = await supabase.from('order_items').insert(items)
 
     if (itemsError) {
-      alert('Order created but items failed: ' + itemsError.message)
+      if (itemsError.message.includes('Not enough stock')) {
+        alert(itemsError.message + '. Refreshing menu with current stock.')
+      } else {
+        alert('Order created but items failed: ' + itemsError.message)
+      }
+      // Order was created but items failed (e.g. insufficient stock) — the
+      // order stays as an empty pending order, and the stock numbers shown
+      // may now be stale, so refresh them.
+      loadDishes(selectedEventId)
     } else {
       setLastOrderNumber(order.order_number)
       setCart({})
@@ -135,8 +167,8 @@ export default function OrderPage() {
       )}
 
       {lastOrderNumber !== null && (
-        <div className="bg-green-100 border border-green-400 text-green-800 rounded-lg p-3 mb-4">
-          Order #{lastOrderNumber} created.
+        <div className="bg-green-100 border border-green-400 text-green-800 rounded-lg px-4 py-3 mb-4 text-lg font-semibold">
+          Last order: #{lastOrderNumber}
         </div>
       )}
 
@@ -156,6 +188,9 @@ export default function OrderPage() {
                 <p className="text-sm text-neutral-500">
                   R$ {ed.price.toFixed(2)}
                 </p>
+                <p className="text-xs text-neutral-400">
+                  {ed.stock === null ? 'Unlimited stock' : `${ed.stock} left`}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -166,8 +201,9 @@ export default function OrderPage() {
                 </button>
                 <span className="w-6 text-center text-lg">{cart[ed.id] ?? 0}</span>
                 <button
-                  className="w-10 h-10 text-xl bg-neutral-200 rounded-lg"
+                  className="w-10 h-10 text-xl bg-neutral-200 rounded-lg disabled:opacity-40"
                   onClick={() => updateQty(ed.id, 1)}
+                  disabled={ed.stock !== null && (cart[ed.id] ?? 0) >= ed.stock}
                 >
                   +
                 </button>
