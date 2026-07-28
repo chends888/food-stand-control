@@ -2,6 +2,7 @@ export type Event = {
   id: string
   name: string
   event_date: string
+  ended: boolean
 }
 
 export type Dish = {

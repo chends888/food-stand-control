@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/lib/types'
 import AdminGate from '@/components/AdminGate'
+import Link from 'next/link'
 
 type Row = {
   dish_name: string
@@ -17,13 +18,19 @@ export default function AdminPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [orderCount, setOrderCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [ending, setEnding] = useState(false)
 
   useEffect(() => {
     supabase
       .from('events')
-      .select('id, name, event_date')
+      .select('id, name, event_date, ended')
       .order('event_date', { ascending: false })
-      .then(({ data }) => setEvents(data ?? []))
+      .then(({ data }) => {
+        setEvents(data ?? [])
+        if (data && data.length > 0) {
+          handleSelectEvent(data[0].id)
+        }
+      })
   }, [])
 
   async function loadSummary(eventId: string) {
@@ -70,6 +77,32 @@ export default function AdminPage() {
     loadSummary(eventId)
   }
 
+  async function endEvent() {
+    if (!selectedEventId) return
+    const event = events.find((ev) => ev.id === selectedEventId)
+    if (!event) return
+    const confirmed = window.confirm(
+      `End "${event.name}"? This marks the event as over. Order-taking and the kitchen queue will no longer show it as active.`
+    )
+    if (!confirmed) return
+
+    setEnding(true)
+    const { error } = await supabase
+      .from('events')
+      .update({ ended: true })
+      .eq('id', selectedEventId)
+    setEnding(false)
+
+    if (error) {
+      alert('Failed to end event: ' + error.message)
+      return
+    }
+
+    setEvents((prev) =>
+      prev.map((ev) => (ev.id === selectedEventId ? { ...ev, ended: true } : ev))
+    )
+  }
+
   const totalRevenue = rows.reduce((sum, r) => sum + r.quantity * r.unit_price, 0)
 
 
@@ -90,6 +123,31 @@ export default function AdminPage() {
             </option>
           ))}
         </select>
+
+        <Link
+          href="/admin/setup"
+          className="inline-block bg-neutral-800 text-white px-4 py-2 rounded-lg mb-6"
+        >
+          Go to setup
+        </Link>
+
+        {selectedEventId && (() => {
+          const event = events.find((ev) => ev.id === selectedEventId)
+          if (!event) return null
+          return event.ended ? (
+            <p className="mb-6 text-sm font-medium text-neutral-500 bg-neutral-100 border rounded-lg px-3 py-2 inline-block">
+              Event ended
+            </p>
+          ) : (
+            <button
+              className="mb-6 bg-red-600 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+              onClick={endEvent}
+              disabled={ending}
+            >
+              {ending ? 'Ending...' : 'End event'}
+            </button>
+          )
+        })()}
 
         {selectedEventId && loading && (
           <p className="text-neutral-400">Loading summary...</p>

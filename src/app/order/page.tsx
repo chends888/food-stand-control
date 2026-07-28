@@ -11,29 +11,45 @@ export default function OrderPage() {
   const [cart, setCart] = useState<Record<string, number>>({}) // event_dish_id -> qty
   const [submitting, setSubmitting] = useState(false)
   const [lastOrderNumber, setLastOrderNumber] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [eventsLoaded, setEventsLoaded] = useState(false)
+
+  async function loadDishes(eventId: string) {
+    const { data } = await supabase
+      .from('event_dishes')
+      .select('id, event_id, dish_id, price, dishes(id, name)')
+      .eq('event_id', eventId)
+    setEventDishes((data as any) ?? [])
+    setLoading(false)
+  }
+
+  function handleSelectEvent(eventId: string) {
+    setSelectedEventId(eventId)
+    setCart({})
+    if (!eventId) {
+      setEventDishes([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    loadDishes(eventId)
+  }
 
   // Load events once
   useEffect(() => {
     supabase
       .from('events')
-      .select('id, name, event_date')
+      .select('id, name, event_date, ended')
+      .eq('ended', false)
       .order('event_date', { ascending: false })
-      .then(({ data }) => setEvents(data ?? []))
+      .then(({ data }) => {
+        setEvents(data ?? [])
+        setEventsLoaded(true)
+        if (data && data.length > 0) {
+          handleSelectEvent(data[0].id)
+        }
+      })
   }, [])
-
-  // Load dishes for selected event
-  useEffect(() => {
-    if (!selectedEventId) {
-      setEventDishes([])
-      return
-    }
-    supabase
-      .from('event_dishes')
-      .select('id, event_id, dish_id, price, dishes(id, name)')
-      .eq('event_id', selectedEventId)
-      .then(({ data }) => setEventDishes((data as any) ?? []))
-    setCart({})
-  }, [selectedEventId])
 
   function updateQty(eventDishId: string, delta: number) {
     setCart((prev) => {
@@ -95,18 +111,28 @@ export default function OrderPage() {
     <main className="min-h-screen bg-neutral-50 p-4 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">New order</h1>
 
-      <select
-        className="w-full border rounded-lg p-3 mb-4 text-lg"
-        value={selectedEventId}
-        onChange={(e) => setSelectedEventId(e.target.value)}
-      >
-        <option value="">Select event</option>
-        {events.map((ev) => (
-          <option key={ev.id} value={ev.id}>
-            {ev.name}
-          </option>
-        ))}
-      </select>
+      {!eventsLoaded && (
+        <p className="text-neutral-400 text-lg">Loading events...</p>
+      )}
+
+      {eventsLoaded && events.length === 0 && (
+        <p className="text-neutral-400 text-lg">No active events.</p>
+      )}
+
+      {eventsLoaded && events.length > 0 && (
+        <select
+          className="w-full border rounded-lg p-3 mb-4 text-lg"
+          value={selectedEventId}
+          onChange={(e) => handleSelectEvent(e.target.value)}
+        >
+          <option value="">Select event</option>
+          {events.map((ev) => (
+            <option key={ev.id} value={ev.id}>
+              {ev.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       {lastOrderNumber !== null && (
         <div className="bg-green-100 border border-green-400 text-green-800 rounded-lg p-3 mb-4">
@@ -114,7 +140,11 @@ export default function OrderPage() {
         </div>
       )}
 
-      {selectedEventId && (
+      {selectedEventId && loading && (
+        <p className="text-neutral-400">Loading menu...</p>
+      )}
+
+      {selectedEventId && !loading && (
         <div className="space-y-3">
           {eventDishes.map((ed) => (
             <div

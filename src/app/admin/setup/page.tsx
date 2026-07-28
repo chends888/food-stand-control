@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Event, Dish, EventDish } from '@/lib/types'
 import AdminGate from '@/components/AdminGate'
+import Link from 'next/link'
 
 export default function AdminSetupPage() {
   const [events, setEvents] = useState<Event[]>([])
@@ -97,6 +98,12 @@ export default function AdminSetupPage() {
     <AdminGate>
       <main className="min-h-screen bg-neutral-50 p-4 max-w-2xl mx-auto space-y-8">
         <h1 className="text-2xl font-bold">Setup</h1>
+        <Link
+          href="/admin"
+          className="inline-block bg-neutral-800 text-white px-4 py-2 rounded-lg"
+        >
+          Back to summary
+        </Link>
 
         {/* Create event */}
         <section className="bg-white border rounded-lg p-4 space-y-3">
