@@ -22,7 +22,7 @@ export default function AdminSetupPage() {
   async function loadEvents() {
     const { data } = await supabase
       .from('events')
-      .select('id, name, event_date')
+      .select('id, name, event_date, ended')
       .order('event_date', { ascending: false })
     setEvents(data ?? [])
   }
