@@ -16,16 +16,36 @@ type OrderWithItems = {
 
 export default function KitchenPage() {
   const [orders, setOrders] = useState<OrderWithItems[]>([])
+  const [eventName, setEventName] = useState<string>('')
+  const [deliveringIds, setDeliveringIds] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
 
   async function loadOrders() {
+    // Only one event is active at a time, so use the most recent one by date.
+    const { data: latestEvent } = await supabase
+      .from('events')
+      .select('id, name')
+      .order('event_date', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!latestEvent) {
+      setOrders([])
+      setLoading(false)
+      return
+    }
+    setEventName(latestEvent.name)
+
     const { data } = await supabase
       .from('orders')
       .select(
         'id, order_number, status, created_at, order_items(quantity, event_dishes(dishes(name)))'
       )
-      .in('status', ['pending', 'ready'])
+      .eq('event_id', latestEvent.id)
+      .eq('status', 'pending')
       .order('order_number', { ascending: true })
     setOrders((data as any) ?? [])
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -45,30 +65,33 @@ export default function KitchenPage() {
     }
   }, [])
 
-  async function markReady(orderId: string) {
-    await supabase.from('orders').update({ status: 'ready' }).eq('id', orderId)
-  }
-
   async function markDelivered(orderId: string) {
-    await supabase.from('orders').update({ status: 'delivered' }).eq('id', orderId)
+    setDeliveringIds((prev) => new Set(prev).add(orderId))
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'delivered' })
+      .eq('id', orderId)
+    if (error) {
+      alert('Failed to update order: ' + error.message)
+      setDeliveringIds((prev) => {
+        const next = new Set(prev)
+        next.delete(orderId)
+        return next
+      })
+    }
+    // On success, the realtime subscription will remove this order from the
+    // list, so no need to clear deliveringIds here.
   }
 
   return (
     <main className="min-h-screen bg-neutral-50 p-4">
-      <h1 className="text-2xl font-bold mb-4">Kitchen queue</h1>
+      <h1 className="text-2xl font-bold mb-1">Kitchen queue</h1>
+      {eventName && <p className="text-neutral-500 mb-4">{eventName}</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {orders.map((order) => (
-          <div
-            key={order.id}
-            className={`rounded-lg p-4 border-2 ${
-              order.status === 'ready'
-                ? 'bg-green-50 border-green-400'
-                : 'bg-white border-neutral-300'
-            }`}
-          >
+          <div key={order.id} className="rounded-lg p-4 border-2 bg-white border-neutral-300">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xl font-bold">#{order.order_number}</span>
-              <span className="text-sm uppercase text-neutral-500">{order.status}</span>
             </div>
             <ul className="mb-3 text-lg">
               {order.order_items.map((item, i) => (
@@ -77,25 +100,17 @@ export default function KitchenPage() {
                 </li>
               ))}
             </ul>
-            {order.status === 'pending' && (
-              <button
-                className="w-full bg-black text-white py-2 rounded-lg font-medium"
-                onClick={() => markReady(order.id)}
-              >
-                Mark ready
-              </button>
-            )}
-            {order.status === 'ready' && (
-              <button
-                className="w-full bg-green-600 text-white py-2 rounded-lg font-medium"
-                onClick={() => markDelivered(order.id)}
-              >
-                Mark delivered
-              </button>
-            )}
+            <button
+              className="w-full bg-black text-white py-2 rounded-lg font-medium disabled:opacity-50"
+              onClick={() => markDelivered(order.id)}
+              disabled={deliveringIds.has(order.id)}
+            >
+              {deliveringIds.has(order.id) ? 'Marking...' : 'Mark delivered'}
+            </button>
           </div>
         ))}
-        {orders.length === 0 && (
+        {loading && <p className="text-neutral-400">Loading orders...</p>}
+        {!loading && orders.length === 0 && (
           <p className="text-neutral-400">No pending orders.</p>
         )}
       </div>
