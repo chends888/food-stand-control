@@ -18,6 +18,7 @@ export const translations = {
       submit: 'Enviar pedido',
       submitting: 'Enviando...',
       lastOrder: 'Último pedido',
+      day: 'Dia',
     },
     kitchen: {
       title: 'Fila da cozinha',
@@ -101,6 +102,7 @@ export const translations = {
       submit: 'Submit order',
       submitting: 'Submitting...',
       lastOrder: 'Last order',
+      day: 'Day',
     },
     kitchen: {
       title: 'Kitchen queue',
