@@ -158,7 +158,7 @@ export default function AdminSetupPage() {
             onChange={(e) => setNewEventName(e.target.value)}
           />
           <input
-            type="datetime-local"
+            type="date"
             className="w-full border rounded-lg p-2"
             value={newEventDate}
             onChange={(e) => setNewEventDate(e.target.value)}

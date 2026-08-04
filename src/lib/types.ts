@@ -3,6 +3,7 @@ export type Event = {
   name: string
   event_date: string
   ended: boolean
+  num_days: number
 }
 
 export type Dish = {
@@ -27,6 +28,7 @@ export type Order = {
   order_number: number
   status: OrderStatus
   created_at: string
+  day_number: number
 }
 
 export type OrderItem = {
