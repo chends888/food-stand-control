@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useLanguage } from '@/lib/language-context'
+import Link from 'next/link'
 
 export default function AdminGate({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage()
   const [unlocked, setUnlocked] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -20,7 +23,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
     if (res.ok) {
       setUnlocked(true)
     } else {
-      setError('Incorrect password')
+      setError(t.auth.incorrectPassword)
     }
   }
 
@@ -29,11 +32,11 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
       <div className="bg-white border rounded-lg p-6 w-full max-w-sm space-y-4">
-        <h1 className="text-xl font-bold">Admin login</h1>
+        <h1 className="text-xl font-bold">{t.auth.title}</h1>
         <input
           type="password"
           className="w-full border rounded-lg p-3 text-lg"
-          placeholder="Password"
+          placeholder={t.auth.passwordPlaceholder}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -45,8 +48,14 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
           onClick={submit}
           disabled={checking}
         >
-          {checking ? 'Checking...' : 'Enter'}
+          {checking ? t.auth.checking : t.auth.enter}
         </button>
+        <Link
+          href="/"
+          className="block text-center text-sm text-neutral-500"
+        >
+          {t.auth.cancel}
+        </Link>
       </div>
     </main>
   )

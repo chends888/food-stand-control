@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useLanguage } from '@/lib/language-context'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+import Link from 'next/link'
 
 type OrderWithItems = {
   id: string
@@ -15,6 +18,7 @@ type OrderWithItems = {
 }
 
 export default function KitchenPage() {
+  const { t } = useLanguage()
   const [orders, setOrders] = useState<OrderWithItems[]>([])
   const [eventName, setEventName] = useState<string>('')
   const [deliveringIds, setDeliveringIds] = useState<Set<string>>(new Set())
@@ -87,13 +91,40 @@ export default function KitchenPage() {
     // list, so no need to clear deliveringIds here.
   }
 
+  const pendingByDish = orders
+    .flatMap((order) => order.order_items)
+    .reduce((acc: Record<string, number>, item) => {
+      const name = item.event_dishes.dishes.name
+      acc[name] = (acc[name] ?? 0) + item.quantity
+      return acc
+    }, {})
+  const pendingDishRows = Object.entries(pendingByDish).sort((a, b) => b[1] - a[1])
+
   return (
     <main className="min-h-screen bg-neutral-50 p-4">
-      <h1 className="text-2xl font-bold mb-1">Kitchen queue</h1>
-      {eventName && <p className="text-neutral-500 mb-4">{eventName}</p>}
+      <Link href="/" className="text-sm text-neutral-500 mb-2 inline-block">
+        ← {t.common.backToHome}
+      </Link>
+      <div className="flex justify-between items-center mb-1">
+        <h1 className="text-2xl font-bold">{t.kitchen.title}</h1>
+        <LanguageSwitcher />
+      </div>
+      {eventName && <p className="text-neutral-500 mb-1">{eventName}</p>}
+      {hasActiveEvent && !loading && pendingDishRows.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {pendingDishRows.map(([name, qty]) => (
+            <span
+              key={name}
+              className="bg-white border rounded-lg px-3 py-1.5 text-sm font-medium"
+            >
+              {name}: {qty}
+            </span>
+          ))}
+        </div>
+      )}
 
       {!loading && !hasActiveEvent && (
-        <p className="text-neutral-400 text-lg">No active events.</p>
+        <p className="text-neutral-400 text-lg">{t.kitchen.noActiveEvents}</p>
       )}
 
       {hasActiveEvent && (
@@ -115,13 +146,13 @@ export default function KitchenPage() {
                 onClick={() => markDelivered(order.id)}
                 disabled={deliveringIds.has(order.id)}
               >
-                {deliveringIds.has(order.id) ? 'Marking...' : 'Mark delivered'}
+                {deliveringIds.has(order.id) ? t.kitchen.marking : t.kitchen.markDelivered}
               </button>
             </div>
           ))}
-          {loading && <p className="text-neutral-400">Loading orders...</p>}
+          {loading && <p className="text-neutral-400">{t.kitchen.loadingOrders}</p>}
           {!loading && orders.length === 0 && (
-            <p className="text-neutral-400">No pending orders.</p>
+            <p className="text-neutral-400">{t.kitchen.noPendingOrders}</p>
           )}
         </div>
       )}

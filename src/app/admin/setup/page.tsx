@@ -5,13 +5,17 @@ import { supabase } from '@/lib/supabase'
 import type { Event, Dish, EventDish } from '@/lib/types'
 import Link from 'next/link'
 import AdminGate from '@/components/AdminGate'
+import { useLanguage } from '@/lib/language-context'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 export default function AdminSetupPage() {
+  const { t } = useLanguage()
   const [events, setEvents] = useState<Event[]>([])
   const [dishes, setDishes] = useState<Dish[]>([])
 
   const [newEventName, setNewEventName] = useState('')
   const [newEventDate, setNewEventDate] = useState('')
+  const [newNumDays, setNewNumDays] = useState('1')
   const [newDishName, setNewDishName] = useState('')
 
   const [selectedEventId, setSelectedEventId] = useState('')
@@ -25,7 +29,7 @@ export default function AdminSetupPage() {
   async function loadEvents() {
     const { data } = await supabase
       .from('events')
-      .select('id, name, event_date, ended')
+      .select('id, name, event_date, ended, num_days')
       .order('event_date', { ascending: false })
     setEvents(data ?? [])
   }
@@ -59,10 +63,11 @@ export default function AdminSetupPage() {
     if (!newEventName || !newEventDate) return
     const { error } = await supabase
       .from('events')
-      .insert({ name: newEventName, event_date: newEventDate })
+      .insert({ name: newEventName, event_date: newEventDate, num_days: parseInt(newNumDays, 10) })
     if (error) return alert(error.message)
     setNewEventName('')
     setNewEventDate('')
+    setNewNumDays('1')
     loadEvents()
   }
 
@@ -120,10 +125,7 @@ export default function AdminSetupPage() {
     if (error) {
       // Postgres blocks this delete (on delete restrict) if orders already
       // reference this event_dish — i.e. it has sales tied to it.
-      alert(
-        'Cannot remove this dish: it already has orders placed for it. ' +
-          'Removing it would break historical sales data.'
-      )
+      alert(t.setup.cannotRemoveDish)
       return
     }
     loadEventDishes(selectedEventId)
@@ -132,20 +134,26 @@ export default function AdminSetupPage() {
   return (
     <AdminGate>
       <main className="min-h-screen bg-neutral-50 p-4 max-w-2xl mx-auto space-y-8">
-        <h1 className="text-2xl font-bold">Setup</h1>
+        <Link href="/" className="text-sm text-neutral-500 inline-block">
+          ← {t.common.backToHome}
+        </Link>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">{t.setup.title}</h1>
+          <LanguageSwitcher />
+        </div>
         <Link
           href="/admin"
           className="inline-block bg-neutral-800 text-white px-4 py-2 rounded-lg"
         >
-          Back to summary
+          {t.setup.backToSummary}
         </Link>
 
         {/* Create event */}
         <section className="bg-white border rounded-lg p-4 space-y-3">
-          <h2 className="font-semibold text-lg">New event</h2>
+          <h2 className="font-semibold text-lg">{t.setup.newEvent}</h2>
           <input
             className="w-full border rounded-lg p-2"
-            placeholder="Event name"
+            placeholder={t.setup.eventName}
             value={newEventName}
             onChange={(e) => setNewEventName(e.target.value)}
           />
@@ -155,20 +163,34 @@ export default function AdminSetupPage() {
             value={newEventDate}
             onChange={(e) => setNewEventDate(e.target.value)}
           />
+          <div>
+            <label className="text-sm text-neutral-500 block mb-1">{t.setup.numDays}</label>
+            <select
+              className="w-full border rounded-lg p-2"
+              value={newNumDays}
+              onChange={(e) => setNewNumDays(e.target.value)}
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             className="bg-black text-white px-4 py-2 rounded-lg"
             onClick={createEvent}
           >
-            Create event
+            {t.setup.createEvent}
           </button>
         </section>
 
         {/* Create dish */}
         <section className="bg-white border rounded-lg p-4 space-y-3">
-          <h2 className="font-semibold text-lg">New dish</h2>
+          <h2 className="font-semibold text-lg">{t.setup.newDish}</h2>
           <input
             className="w-full border rounded-lg p-2"
-            placeholder="Dish name"
+            placeholder={t.setup.dishName}
             value={newDishName}
             onChange={(e) => setNewDishName(e.target.value)}
           />
@@ -176,19 +198,19 @@ export default function AdminSetupPage() {
             className="bg-black text-white px-4 py-2 rounded-lg"
             onClick={createDish}
           >
-            Create dish
+            {t.setup.createDish}
           </button>
         </section>
 
         {/* Link dish to event with price */}
         <section className="bg-white border rounded-lg p-4 space-y-3">
-          <h2 className="font-semibold text-lg">Add dish to event</h2>
+          <h2 className="font-semibold text-lg">{t.setup.addDishToEvent}</h2>
           <select
             className="w-full border rounded-lg p-2"
             value={selectedEventId}
             onChange={(e) => setSelectedEventId(e.target.value)}
           >
-            <option value="">Select event</option>
+            <option value="">{t.admin.selectEvent}</option>
             {events.map((ev) => (
               <option key={ev.id} value={ev.id}>
                 {ev.name}
@@ -198,7 +220,7 @@ export default function AdminSetupPage() {
 
           {selectedEventId && selectedEvent?.ended && (
             <p className="text-sm font-medium text-neutral-500 bg-neutral-100 border rounded-lg px-3 py-2">
-              This event has ended. Dishes can no longer be added or removed.
+              {t.setup.eventEndedNotice}
             </p>
           )}
 
@@ -209,7 +231,7 @@ export default function AdminSetupPage() {
                 value={selectedDishId}
                 onChange={(e) => setSelectedDishId(e.target.value)}
               >
-                <option value="">Select dish</option>
+                <option value="">{t.setup.selectDish}</option>
                 {dishes.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -220,7 +242,7 @@ export default function AdminSetupPage() {
                 type="number"
                 step="0.01"
                 className="w-full border rounded-lg p-2"
-                placeholder="Price"
+                placeholder={t.setup.price}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
               />
@@ -228,7 +250,7 @@ export default function AdminSetupPage() {
                 type="number"
                 min="0"
                 className="w-full border rounded-lg p-2"
-                placeholder="Stock (leave empty for unlimited)"
+                placeholder={t.setup.stockPlaceholder}
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
               />
@@ -236,7 +258,7 @@ export default function AdminSetupPage() {
                 className="bg-black text-white px-4 py-2 rounded-lg"
                 onClick={linkDish}
               >
-                Add to event
+                {t.setup.addToEvent}
               </button>
             </>
           )}
@@ -251,25 +273,25 @@ export default function AdminSetupPage() {
                   <span className="flex-1">
                     {(ed as any).dishes?.name} — R$ {ed.price.toFixed(2)}
                   </span>
-                  <span className="text-xs text-neutral-500">Stock:</span>
+                  <span className="text-xs text-neutral-500">{t.setup.stock}:</span>
                   <input
                     type="number"
                     min="0"
                     className="w-24 border rounded-lg p-1 text-sm"
-                    placeholder="Unlimited"
+                    placeholder={t.common.unlimited}
                     defaultValue={ed.stock ?? ''}
                     disabled={selectedEvent?.ended}
                     onChange={(e) => handleStockChange(ed.id, e.target.value)}
                   />
                   {savingStockIds.has(ed.id) && (
-                    <span className="text-xs text-neutral-400">Saving...</span>
+                    <span className="text-xs text-neutral-400">{t.setup.saving}</span>
                   )}
                   {!selectedEvent?.ended && (
                     <button
                       className="text-red-600 text-sm"
                       onClick={() => removeEventDish(ed.id)}
                     >
-                      Remove
+                      {t.setup.remove}
                     </button>
                   )}
                 </li>
