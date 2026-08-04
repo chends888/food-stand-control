@@ -44,12 +44,15 @@ export const translations = {
       endEventConfirm: (name: string) =>
         `Encerrar "${name}"? Isso marca o evento como finalizado. A tela de pedidos e a fila da cozinha não vão mais mostrá-lo como ativo.`,
       endEventError: 'Falha ao encerrar o evento: ',
+      day: 'Dia',
+      allDays: 'Total (todos os dias)',
     },
     setup: {
       title: 'Configuração',
       backToSummary: 'Voltar ao resumo',
       newEvent: 'Novo evento',
       eventName: 'Nome do evento',
+      numDays: 'Número de dias',
       createEvent: 'Criar evento',
       newDish: 'Novo prato',
       dishName: 'Nome do prato',
@@ -124,12 +127,15 @@ export const translations = {
       endEventConfirm: (name: string) =>
         `End "${name}"? This marks the event as over. Order-taking and the kitchen queue will no longer show it as active.`,
       endEventError: 'Failed to end event: ',
+      day: 'Day',
+      allDays: 'Total (all days)',
     },
     setup: {
       title: 'Setup',
       backToSummary: 'Back to summary',
       newEvent: 'New event',
       eventName: 'Event name',
+      numDays: 'Number of days',
       createEvent: 'Create event',
       newDish: 'New dish',
       dishName: 'Dish name',
