@@ -18,6 +18,7 @@ export default function OrderPage() {
   const [loading, setLoading] = useState(false)
   const [eventsLoaded, setEventsLoaded] = useState(false)
   const [selectedDay, setSelectedDay] = useState(1)
+  const [observation, setObservation] = useState('')
 
   function computeDefaultDay(eventDateStr: string, numDays: number) {
     const start = new Date(eventDateStr)
@@ -119,7 +120,11 @@ export default function OrderPage() {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({ event_id: selectedEventId, day_number: selectedDay })
+      .insert({
+        event_id: selectedEventId,
+        day_number: selectedDay,
+        observation: observation.trim() === '' ? null : observation.trim(),
+      })
       .select()
       .single()
 
@@ -154,6 +159,7 @@ export default function OrderPage() {
     } else {
       setLastOrderNumber(order.order_number)
       setCart({})
+      setObservation('')
     }
     setSubmitting(false)
   }
@@ -258,8 +264,16 @@ export default function OrderPage() {
         </div>
       )}
 
-      {Object.keys(cart).length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 max-w-xl mx-auto">
+      {selectedEventId && !loading && (
+        <div className="bg-white border rounded-lg p-4 mt-4">
+          <input
+            type="text"
+            className="w-full border rounded-lg p-2 mb-3 text-sm"
+            placeholder={t.order.observationPlaceholder}
+            value={observation}
+            onChange={(e) => setObservation(e.target.value)}
+            maxLength={200}
+          />
           <div className="flex justify-between mb-3 text-lg font-semibold">
             <span>{t.order.total}</span>
             <span>R$ {total.toFixed(2)}</span>
@@ -267,7 +281,7 @@ export default function OrderPage() {
           <button
             className="w-full bg-black text-white text-lg font-medium py-3 rounded-lg disabled:opacity-50"
             onClick={submitOrder}
-            disabled={submitting}
+            disabled={submitting || Object.keys(cart).length === 0}
           >
             {submitting ? t.order.submitting : t.order.submit}
           </button>

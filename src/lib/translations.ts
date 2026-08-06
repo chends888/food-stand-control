@@ -19,6 +19,8 @@ export const translations = {
       submitting: 'Enviando...',
       lastOrder: 'Último pedido',
       day: 'Dia',
+      observation: 'Observação',
+      observationPlaceholder: 'Observação (opcional)',
     },
     kitchen: {
       title: 'Fila da cozinha',
@@ -28,6 +30,8 @@ export const translations = {
       marking: 'Marcando...',
       noActiveEvents: 'Nenhum evento ativo.',
       itemsPending: 'itens pendentes',
+      showMore: 'ver mais',
+      showLess: 'ver menos',
     },
     admin: {
       salesSummary: 'Resumo de vendas',
@@ -103,6 +107,8 @@ export const translations = {
       submitting: 'Submitting...',
       lastOrder: 'Last order',
       day: 'Day',
+      observation: 'Observation',
+      observationPlaceholder: 'Observation (optional)',
     },
     kitchen: {
       title: 'Kitchen queue',
@@ -112,6 +118,8 @@ export const translations = {
       marking: 'Marking...',
       noActiveEvents: 'No active events.',
       itemsPending: 'items pending',
+      showMore: 'show more',
+      showLess: 'show less',
     },
     admin: {
       salesSummary: 'Sales summary',

@@ -11,6 +11,7 @@ type OrderWithItems = {
   order_number: number
   status: string
   created_at: string
+  observation: string | null
   order_items: {
     quantity: number
     event_dishes: { dishes: { name: string } }
@@ -24,6 +25,7 @@ export default function KitchenPage() {
   const [deliveringIds, setDeliveringIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [hasActiveEvent, setHasActiveEvent] = useState(true)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   async function loadOrders() {
     // Only one event is active at a time, so use the most recent non-ended one.
@@ -47,7 +49,7 @@ export default function KitchenPage() {
     const { data } = await supabase
       .from('orders')
       .select(
-        'id, order_number, status, created_at, order_items(quantity, event_dishes(dishes(name)))'
+        'id, order_number, status, created_at, observation, order_items(quantity, event_dishes(dishes(name)))'
       )
       .eq('event_id', latestEvent.id)
       .eq('status', 'pending')
@@ -90,6 +92,17 @@ export default function KitchenPage() {
     // On success, the realtime subscription will remove this order from the
     // list, so no need to clear deliveringIds here.
   }
+
+  function toggleExpanded(orderId: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(orderId)) next.delete(orderId)
+      else next.add(orderId)
+      return next
+    })
+  }
+
+  const OBSERVATION_LIMIT = 40
 
   const pendingByDish = orders
     .flatMap((order) => order.order_items)
@@ -141,6 +154,21 @@ export default function KitchenPage() {
                   </li>
                 ))}
               </ul>
+              {order.observation && (
+                <p className="mb-3 text-sm text-neutral-600 bg-neutral-50 border rounded-lg p-2">
+                  {expandedIds.has(order.id) || order.observation.length <= OBSERVATION_LIMIT
+                    ? order.observation
+                    : `${order.observation.slice(0, OBSERVATION_LIMIT)}...`}
+                  {order.observation.length > OBSERVATION_LIMIT && (
+                    <button
+                      className="text-neutral-400 underline ml-1"
+                      onClick={() => toggleExpanded(order.id)}
+                    >
+                      {expandedIds.has(order.id) ? t.kitchen.showLess : t.kitchen.showMore}
+                    </button>
+                  )}
+                </p>
+              )}
               <button
                 className="w-full bg-black text-white py-2 rounded-lg font-medium disabled:opacity-50"
                 onClick={() => markDelivered(order.id)}
